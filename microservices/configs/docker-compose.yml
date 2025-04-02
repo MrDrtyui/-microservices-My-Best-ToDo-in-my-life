@@ -13,7 +13,7 @@ services:
     ports:
       -  "${POSTGRES_PORT}:5432"
     networks:
-    - into-net
+      - into-net
 
   todo-db:
     image: postgres:16
@@ -23,7 +23,7 @@ services:
     ports:
       -  "${POSTGRES_PORT}:5432"
     networks:
-    - into-net
+      - into-net
 
   push-db:
     image: postgres:16
@@ -33,7 +33,7 @@ services:
     ports:
       -  "${POSTGRES_PORT}:5432"
     networks:
-    - into-net
+      - into-net
 
   auth-db:
     image: postgres:16
@@ -43,9 +43,19 @@ services:
     ports:
       -  "${POSTGRES_PORT}:5432"
     networks:
-    - into-net
+      - into-net
 
   redis-session:
     image: redis:7
     container_name: redis-sessions
     restart: always
+    env_file: ./.env.redis.sessions
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "8001:8001"
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+
+volumes:
+  redis-data:
