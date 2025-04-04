@@ -6,6 +6,8 @@ import * as bcrypt from 'bcrypt';
 import { CreateSessionDto } from 'src/redis/dto/sessionCreate.dto';
 import { SessionDto } from 'src/redis/dto/session.dto';
 import { EncryptionService } from 'src/encryption/encryption.service';
+import { LoginDto } from './dto/loginUser.dto';
+import { debuglog } from 'util';
 
 @Injectable()
 export class AuthService {
@@ -16,34 +18,68 @@ export class AuthService {
   ) {}
 
   async CreateUser(createDto: CreateDto): Promise<string> {
-    const userExis = await this.prisma.user.findUnique({
-      where: {
-        email: createDto.email,
-      },
-    });
+    try {
+      const userExis = await this.prisma.user.findUnique({
+        where: {
+          email: createDto.email,
+        },
+      });
 
-    if (userExis) {
-      throw new BadRequestException('Пользователь уже существует');
+      if (userExis) {
+        throw new BadRequestException('Пользователь уже существует');
+      }
+
+      const hashedPassword = await bcrypt.hash(createDto.password, 10);
+
+      const newUser = await this.prisma.user.create({
+        data: {
+          email: createDto.email,
+          password: hashedPassword,
+        },
+      });
+
+      const sessionUserId: CreateSessionDto = {
+        userId: newUser.id,
+      };
+
+      const sessionData = await this.redis.CreateSession(sessionUserId);
+
+      const encryptedData = this.crypto.encryptData(
+        JSON.stringify(sessionData),
+      );
+
+      return encryptedData;
+    } catch (e) {
+      debuglog(e);
+      throw new BadRequestException({ message: 'Errorka' });
     }
+  }
 
-    const hashedPassword = await bcrypt.hash(createDto.password, 10);
+  async LoginUser(loginDto: LoginDto): Promise<string> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email: loginDto.email },
+      });
 
-    const newUser = await this.prisma.user.create({
-      data: {
-        email: createDto.email,
-        password: hashedPassword,
-      },
-    });
+      const isMath = await bcrypt.compare(loginDto.password, user.password);
 
-    const sessionUserId: CreateSessionDto = {
-      userId: newUser.id,
-    };
+      if (!isMath) {
+        throw new BadRequestException({ message: 'Неверный логин или пароль' });
+      }
 
-    const sessionData = await this.redis.CreateSession(sessionUserId);
+      const sessionUserId: CreateSessionDto = {
+        userId: user.id,
+      };
 
-    const encryptedData = this.crypto.encryptData(JSON.stringify(sessionData));
+      const sessionData = await this.redis.CreateSession(sessionUserId);
 
-    return encryptedData;
+      const encryptData = this.crypto.encryptData(JSON.stringify(sessionData));
+
+      return encryptData;
+    } catch (e) {
+      debuglog(e);
+      throw new BadRequestException({ message: 'Errorka' });
+    }
   }
 
   DeEncryptData(shiphString: string): SessionDto {
@@ -54,5 +90,9 @@ export class AuthService {
 
   async VerifySession(sessionData: SessionDto) {
     return await this.redis.VerifySession(sessionData);
+  }
+
+  async DeleteSession(sessionData: SessionDto) {
+    return await this.redis.DeleteSession(sessionData.userId);
   }
 }

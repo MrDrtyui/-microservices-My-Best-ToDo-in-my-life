@@ -45,6 +45,6 @@ export class RedisService {
   }
 
   async DeleteSession(userId: string) {
-    await this.redis.del(`session:${userId}`);
+    return await this.redis.del(`session:${userId}`);
   }
 }
