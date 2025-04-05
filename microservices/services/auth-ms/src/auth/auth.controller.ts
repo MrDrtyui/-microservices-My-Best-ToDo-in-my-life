@@ -38,10 +38,14 @@ export class AuthController {
   }
 
   @Post('verify')
-  async verify(@Req() req: Request) {
+  async verify(@Req() req: Request, @Res() res: Response) {
     const session = req.cookies.session;
     const sessionData = this.authService.DeEncryptData(session);
-    return this.authService.VerifySession(sessionData);
+    const isVerify = await this.authService.VerifySession(sessionData);
+    if (isVerify) {
+      return res.status(200).json({ verify: true, userId: sessionData.userId });
+    }
+    return res.status(401).json({ verify: false });
   }
 
   @Delete()
