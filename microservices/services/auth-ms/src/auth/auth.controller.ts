@@ -1,58 +1,55 @@
-import { Body, Controller, Delete, Post, Req, Res } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateDto } from './dto/createUser.dto';
-import { Response, Request } from 'express';
 import { LoginDto } from './dto/loginUser.dto';
+import { MessagePattern } from '@nestjs/microservices';
+import { SessionMessageDto } from 'src/dto/session.message.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
-  async login(@Body() loginDto: LoginDto, @Res() res: Response) {
-    const sessionData = await this.authService.LoginUser(loginDto);
+  @MessagePattern('login_user')
+  async loginl(loginDto: LoginDto) {
+    const sessionDataCrypto = await this.authService.LoginUser(loginDto);
 
-    if (sessionData) {
-      res.cookie('session', sessionData, {
-        httpOnly: true,
-        secure: true,
-      });
-
-      return res.status(200).json({ message: 'Loggin in' });
+    if (sessionDataCrypto) {
+      return new SessionMessageDto(true, sessionDataCrypto);
     }
+
+    return { message: false };
   }
 
-  @Post('register')
-  async register(@Body() createUserDto: CreateDto, @Res() res: Response) {
+  @MessagePattern('register_user')
+  async register(createUserDto: CreateDto) {
     const stringSessionCrypto =
       await this.authService.CreateUser(createUserDto);
 
     if (stringSessionCrypto) {
-      res.cookie('session', stringSessionCrypto, {
-        httpOnly: true,
-        secure: true,
-      });
-
-      return res.status(200).json({ message: 'Loggin in' });
+      return { session: stringSessionCrypto, message: true };
     }
+
+    return { message: false };
   }
 
-  @Post('verify')
-  async verify(@Req() req: Request, @Res() res: Response) {
-    const session = req.cookies.session;
+  @MessagePattern('verify_user')
+  async verify(session: string) {
     const sessionData = this.authService.DeEncryptData(session);
     const isVerify = await this.authService.VerifySession(sessionData);
     if (isVerify) {
-      return res.status(200).json({ verify: true, userId: sessionData.userId });
+      return { message: true };
     }
-    return res.status(401).json({ verify: false });
+
+    return { message: false };
   }
 
-  @Delete()
-  async deleteSession(@Req() req: Request, @Res() res: Response) {
-    const session = req.cookies.session;
+  @MessagePattern('deleteSession_user')
+  async deleteSession(session: string) {
     const sessionData = this.authService.DeEncryptData(session);
     const result = await this.authService.DeleteSession(sessionData);
-    return res.status(200).json({ message: result });
+    if (result) {
+      return { message: true };
+    }
+    return { message: false };
   }
 }
