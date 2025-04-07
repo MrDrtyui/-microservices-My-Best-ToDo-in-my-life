@@ -1,46 +1,37 @@
-import { HttpService } from '@nestjs/axios';
 import {
   CanActivate,
   ExecutionContext,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { AuthService } from './auth.service';
 import { Request } from 'express';
-import { firstValueFrom } from 'rxjs';
-import { debuglog } from 'util';
+import { debuglog } from 'node:util';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req: Request = context.switchToHttp().getRequest();
-    const cookie = req.headers.cookie;
+    const req: Request = context.switchToHttp().getRequest<Request>();
+    const session = req.cookies?.session;
 
-    if (!cookie) {
-      throw new UnauthorizedException('Huy tam');
+    if (!session) {
+      throw new UnauthorizedException('Cookie not found');
     }
 
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.post('http://localhost:3000/auth/verify', null, {
-          headers: {
-            Cookie: cookie,
-          },
-        }),
-      );
+      const userId = await this.authService.verify(session);
 
-      if (data.verify === true) {
-        req['user'] = {
-          userId: data.userId,
-        };
+      if (userId) {
+        (req as any).userId = userId;
         return true;
       }
-
-      return false;
-    } catch (e) {
-      debuglog(e);
-      throw new UnauthorizedException('Huy tam');
+    } catch (error) {
+      debuglog(error);
+      throw new UnauthorizedException('Invalid token');
     }
+
+    return false;
   }
 }

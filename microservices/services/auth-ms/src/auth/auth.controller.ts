@@ -1,9 +1,10 @@
-import { Controller } from '@nestjs/common';
+import { Body, Controller, Get, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateDto } from './dto/createUser.dto';
 import { LoginDto } from './dto/loginUser.dto';
 import { MessagePattern } from '@nestjs/microservices';
 import { SessionMessageDto } from 'src/dto/session.message.dto';
+import { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -36,8 +37,8 @@ export class AuthController {
   async verify(session: string) {
     const sessionData = this.authService.DeEncryptData(session);
     const isVerify = await this.authService.VerifySession(sessionData);
-    if (isVerify) {
-      return { message: true };
+    if (isVerify == true) {
+      return { userId: sessionData.userId, message: true };
     }
 
     return { message: false };
@@ -50,6 +51,18 @@ export class AuthController {
     if (result) {
       return { message: true };
     }
+    return { message: false };
+  }
+
+  @Get('beach')
+  async verifyRest(@Req() req: Request) {
+    const session = req.headers.cookie;
+    const sessionData = this.authService.DeEncryptData(session);
+    const isVerify = await this.authService.VerifySession(sessionData);
+    if (isVerify == true) {
+      return { userId: sessionData.userId, message: true };
+    }
+
     return { message: false };
   }
 }

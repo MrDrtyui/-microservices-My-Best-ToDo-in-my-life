@@ -10,8 +10,8 @@ export class AuthService {
   @Client({
     transport: Transport.TCP,
     options: {
-      host: 'localhost',
       port: 3000,
+      host: 'localhost',
     },
   })
   private readonly client: ClientProxy;
@@ -55,6 +55,31 @@ export class AuthService {
     } catch (e) {
       debuglog(e);
       return null;
+    }
+  }
+
+  async verify(session: string) {
+    try {
+      const response = await this.client
+        .send('verify_user', session)
+        .toPromise();
+
+      const sessionMessage: SessionMessageDto = {
+        message: response.message,
+        userId: response.userId,
+
+        IsValid: () => {
+          return null;
+        },
+      };
+
+      if (sessionMessage.message) {
+        return sessionMessage.userId;
+      }
+      return sessionMessage.IsValid();
+    } catch (e) {
+      debuglog(e);
+      return session;
     }
   }
 }
