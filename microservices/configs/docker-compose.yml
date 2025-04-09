@@ -5,13 +5,28 @@ networks:
     driver: bridge 
 
 services:
+  api-gateway:
+    build:
+      context: ../api-gateway/
+      dockerfile: dockerfile
+    container_name: api-gateway
+    hostname: api-gateway
+    ports:
+      - "3000:3000"
+    networks: 
+      - into-net
+    env_file:
+      - ./.env.apigateway
+    depends_on:
+      - auth-ms
+
   user-db:
     image: postgres:16
     container_name: db-user
     env_file:
       ./.env.user
     ports:
-      -  "5432:5432"
+      -  "5434:5432"
     networks:
       - into-net
 
@@ -21,11 +36,11 @@ services:
     env_file:
       ./.env.todo
     ports:
-      -  "${POSTGRES_PORT}:5432"
+      -  "5433:5432"
     networks:
       - into-net
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - todo-db-data:/var/lib/postgresql/data
 
   push-db:
     image: postgres:16
@@ -33,13 +48,14 @@ services:
     env_file:
       ./.env.push
     ports:
-      -  "${POSTGRES_PORT}:5432"
+      -  "5035:5432"
     networks:
       - into-net
 
   auth-db:
     image: postgres:16
     container_name: auth-db
+    hostname: auth-db
     env_file: 
       ./.env.auth
     ports:
@@ -47,9 +63,25 @@ services:
     networks:
       - into-net
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - auth-db-data:/var/lib/postgresql/data
 
-  redis-session:
+  auth-ms:
+    build: 
+      context: ../services/auth-ms/
+      dockerfile: dockerfile
+    container_name: auth-ms
+    hostname: auth-ms
+    ports: 
+      - "3011:3000"
+    networks:
+      - into-net
+    env_file:
+      - ./.env.auth
+    depends_on:
+      - redis-sessions
+      - auth-db
+
+  redis-sessions:
     image: redis:7
     container_name: redis-sessions
     restart: always
@@ -109,5 +141,6 @@ services:
 
 volumes:
   redis_data:
-  postgres_data:
+  auth-db-data:
+  todo-db-data: 
   kafka-data:

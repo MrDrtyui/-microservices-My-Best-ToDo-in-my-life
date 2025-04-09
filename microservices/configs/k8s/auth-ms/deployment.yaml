@@ -1,0 +1,25 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-ms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-ms
+  template:
+    metadata:
+      labels:
+        app: auth-ms
+    spec:
+      containers:
+        - name: auth-ms
+          image: drtyui/todo-auth-ms:latest  # укажи свой образ
+          ports:
+            - containerPort: 3000  # порт, на котором работает auth-ms
+          env:
+            - name: DATABASE_URL
+              value: postgres://admin:password@auth-db:5432/auth_db  # ссылка на DB в minikube
+            - name: REDIS_HOST
+              value: redis-session:6379  # адрес Redis-сервиса
